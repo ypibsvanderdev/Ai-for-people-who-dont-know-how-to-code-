@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LuaVault — AI Script Generator & Loadstring Host</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+* { scrollbar-width: thin; scrollbar-color: #373A40 #1A1B1E; }
+*::-webkit-scrollbar { width: 6px; }
+*::-webkit-scrollbar-track { background: #1A1B1E; }
+*::-webkit-scrollbar-thumb { background: #373A40; border-radius: 3px; }
+body { background: #101113; font-family: 'Inter', sans-serif; }
+.code-editor { background: #0d1117; color: #c9d1d9; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6; resize: none; tab-size: 2; }
+.tab-active { background: linear-gradient(135deg, #4c6ef5, #3b5bdb); color: white; }
+.modal-overlay { background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); }
+.switch { position: relative; width: 44px; height: 24px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; inset: 0; background: #373A40; border-radius: 24px; transition: 0.3s; }
+.slider::before { content: ''; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+input:checked + .slider { background: #4c6ef5; }
+input:checked + .slider::before { transform: translateX(20px); }
+</style>
+</head>
+<body class="text-gray-300 min-h-screen Selection:bg-blue-500/30">
+
+<div id="app" class="min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="border-b border-gray-800 bg-gray-900/80 backdrop-blur-xl sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-purple-500 flex items-center justify-center">
+                    <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-white tracking-tight">LuaVault</h1>
+                    <p class="text-[10px] text-gray-400">AI Script Generator & Secure Host</p>
+                </div>
+            </div>
+            <nav class="flex items-center gap-1">
+                <button onclick="switchTab('generator')" data-tab="generator" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all tab-active">Generator</button>
+                <button onclick="switchTab('vault')" data-tab="vault" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">Vault</button>
+                <button onclick="switchTab('loadstrings')" data-tab="loadstrings" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition-all text-gray-400 hover:text-white">Loadstrings</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Generator Tab -->
+    <div id="tab-generator" class="tab-content flex-1 p-6">
+        <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="space-y-4">
+                <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-gray-700 bg-gray-900/50 flex items-center justify-between">
+                        <span class="text-sm font-semibold text-white">Describe Your Script</span>
+                        <select id="script-type" class="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs outline-none">
+                            <option value="roblox">Roblox</option>
+                            <option value="utility">Utility</option>
+                        </select>
+                    </div>
+                    <div class="p-4">
+                        <textarea id="prompt-input" rows="6" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-sm font-mono outline-none focus:border-blue-500" placeholder="Describe the script you want..."></textarea>
+                        <div class="flex items-center justify-between mt-3">
+                            <span class="text-[10px] text-gray-500">Claude-3.5-Elite-Powered</span>
+                            <button onclick="generateScript()" id="generate-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg transition-all">Generate Script</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="templates-grid" class="grid grid-cols-2 gap-2"></div>
+            </div>
+            <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden flex flex-col">
+                <div class="px-4 py-3 border-b border-gray-700 bg-gray-900/50 flex items-center justify-between">
+                    <span class="text-sm font-semibold text-white">Output</span>
+                    <div class="flex gap-2">
+                        <button onclick="copyOutput()" class="p-1 hover:bg-gray-700 rounded"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                        <button onclick="openHostModal()" class="px-3 py-1 bg-green-600 hover:bg-green-500 text-white font-bold text-xs rounded-lg">Host Loadstring</button>
+                    </div>
+                </div>
+                <textarea id="code-output" class="code-editor flex-1 p-4 outline-none" spellcheck="false" placeholder="-- Script appears here..."></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vault Tab -->
+    <div id="tab-vault" class="tab-content flex-1 p-6 hidden">
+        <div id="vault-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+    </div>
+
+    <!-- Loadstrings Tab -->
+    <div id="tab-loadstrings" class="tab-content flex-1 p-6 hidden">
+        <div id="loadstrings-list" class="space-y-4"></div>
+    </div>
+</div>
+
+<!-- Host Modal -->
+<div id="modal-host" class="fixed inset-0 z-50 hidden items-center justify-center modal-overlay">
+    <div class="bg-gray-800 rounded-2xl border border-gray-700 w-full max-w-lg p-6 shadow-2xl">
+        <h3 class="text-xl font-bold text-white mb-4">Host Loadstring</h3>
+        <div class="space-y-4">
+            <input type="text" id="host-name" placeholder="Script Name" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-sm outline-none">
+            <div class="flex items-center justify-between p-3 bg-gray-900 rounded-lg border border-gray-700">
+                <span class="text-sm">Obfuscate Security (Max Protection)</span>
+                <label class="switch"><input type="checkbox" id="host-obfuscate"><span class="slider"></span></label>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-gray-900 rounded-lg border border-gray-700">
+                <span class="text-sm">Key System Protection</span>
+                <label class="switch"><input type="checkbox" id="host-key-toggle"><span class="slider"></span></label>
+            </div>
+            <button onclick="hostScript()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all">Host Script Now</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] space-y-2"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
